@@ -249,7 +249,7 @@ def train(args) :
             time_steps = np.arange(1, args.horizon + 1) * 15 # 분 단위 변환
 
             for f_idx, col_name in enumerate(features):
-                axes[f_idx].plot(time_steps, targets_orig[sample_idx, :, f_idx], 'g-o', label='Actual (Ground Truth)')
+                # axes[f_idx].plot(time_steps, targets_orig[sample_idx, :, f_idx], 'g-o', label='Actual (Ground Truth)')
                 axes[f_idx].plot(time_steps, preds_orig[sample_idx, :, f_idx], 'r--s', label='Autoregressive Rollout')
                 axes[f_idx].set_title(f'{col_name} Forecast')
                 axes[f_idx].set_xlabel('Minutes Ahead')
