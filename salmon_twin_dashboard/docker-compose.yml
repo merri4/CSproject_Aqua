@@ -4,8 +4,11 @@ services:
     working_dir: /app
     volumes:
       - ./backend:/app
+      - ../rag:/rag:ro
     env_file:
       - ./backend/.env
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
     command: bash -lc "pip install --no-cache-dir -r requirements.txt && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"

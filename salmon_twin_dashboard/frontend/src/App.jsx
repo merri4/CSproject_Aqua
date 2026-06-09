@@ -72,6 +72,7 @@ export default function App() {
   const [columns, setColumns] = useState([]);
   const [selectedSeries, setSelectedSeries] = useState([]);
   const [loadingSensors, setLoadingSensors] = useState(false);
+  const [serviceStatus, setServiceStatus] = useState(null);
   const [proposal, setProposal] = useState(null);
   const [proposalLoading, setProposalLoading] = useState(false);
   const [controlResult, setControlResult] = useState(null);
@@ -94,6 +95,15 @@ export default function App() {
     }));
   }, [rows, timeColumn]);
 
+  async function loadStatus() {
+    try {
+      const data = await api('/api/status');
+      setServiceStatus(data);
+    } catch (err) {
+      setServiceStatus({ error: err.message });
+    }
+  }
+
   async function loadSensors() {
     setLoadingSensors(true);
     try {
@@ -112,8 +122,13 @@ export default function App() {
 
   useEffect(() => {
     loadSensors();
-    const id = setInterval(loadSensors, 5000);
-    return () => clearInterval(id);
+    loadStatus();
+    const sensorId = setInterval(loadSensors, 5000);
+    const statusId = setInterval(loadStatus, 15000);
+    return () => {
+      clearInterval(sensorId);
+      clearInterval(statusId);
+    };
   }, []);
 
   useEffect(() => {
@@ -192,6 +207,19 @@ export default function App() {
     setSelectedSeries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
+  function connectionClass(ok) {
+    if (ok === true) return 'connection ok';
+    if (ok === false) return 'connection error';
+    return 'connection watch';
+  }
+
+  const connections = [
+    { label: 'DB', ok: serviceStatus?.db?.ok, detail: serviceStatus?.db?.table || serviceStatus?.db?.error || 'checking' },
+    { label: 'LLM', ok: serviceStatus?.llm?.ok, detail: serviceStatus?.llm?.model || serviceStatus?.llm?.error || 'checking' },
+    { label: 'RAG', ok: serviceStatus?.rag?.ok, detail: serviceStatus?.rag?.mode || serviceStatus?.rag?.warning || 'checking' },
+    { label: 'WebRTC', ok: Boolean(STREAM_URL), detail: STREAM_URL }
+  ];
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -230,6 +258,15 @@ export default function App() {
               <span className="section-label"><Activity size={16} /> Current State</span>
               <h2>Latest Sensor Snapshot</h2>
             </div>
+          </div>
+          <div className="connection-grid">
+            {connections.map((item) => (
+              <div className={connectionClass(item.ok)} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.ok === true ? 'connected' : item.ok === false ? 'error' : 'checking'}</strong>
+                <small title={item.detail}>{item.detail}</small>
+              </div>
+            ))}
           </div>
           <div className="metric-grid">
             {sensorColumns.map((c) => (

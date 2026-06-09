@@ -167,6 +167,31 @@ button.full { width: 100%; margin-top: 14px; }
 button.confirm { background: rgba(52, 211, 153, 0.14); border-color: rgba(52, 211, 153, 0.35); color: var(--ok); flex: 1; }
 button.decline { background: rgba(251, 113, 133, 0.12); border-color: rgba(251, 113, 133, 0.32); color: var(--danger); flex: 1; }
 
+.connection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.connection {
+  min-width: 0;
+  padding: 11px;
+  border-radius: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 3px;
+}
+.connection span { color: var(--muted); font-size: 11px; font-weight: 850; text-transform: uppercase; }
+.connection strong { font-size: 13px; }
+.connection small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.connection.ok { border-color: rgba(52, 211, 153, 0.36); }
+.connection.ok strong { color: var(--ok); }
+.connection.watch { border-color: rgba(251, 191, 36, 0.32); }
+.connection.watch strong { color: var(--warning); }
+.connection.error { border-color: rgba(251, 113, 133, 0.34); }
+.connection.error strong { color: var(--danger); }
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -292,7 +317,7 @@ th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spa
   .app-shell { padding: 16px; }
   .topbar { align-items: stretch; flex-direction: column; }
   .topbar-actions { justify-content: space-between; }
-  .metric-grid { grid-template-columns: 1fr; }
+  .metric-grid, .connection-grid { grid-template-columns: 1fr; }
   .stream-frame { height: 320px; }
   .card { border-radius: 18px; padding: 14px; }
 }

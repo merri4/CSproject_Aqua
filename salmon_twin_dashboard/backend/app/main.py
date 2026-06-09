@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .db import append_action_log, get_latest_sensor_row, get_recent_sensor_rows, sensor_columns
-from .ollama_client import chat_with_operator, generate_report, propose_actions
+from .db import append_action_log, append_control_command, database_status, get_latest_sensor_row, get_recent_sensor_rows, sensor_columns
+from .ollama_client import chat_with_operator, generate_report, ollama_status, propose_actions
+from .rag_adapter import rag_status
 from .schemas import ActionDecision, ActionProposal, ChatRequest, ChatResponse, ControlPayload, ReportRequest, ReportResponse, SensorResponse
 
 app = FastAPI(title="Salmon Twin AI Dashboard API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.CORS_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[settings.CORS_ORIGIN, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -22,8 +24,22 @@ last_proposal: ActionProposal | None = None
 
 
 @app.get("/health")
-def health():
+async def health():
     return {"ok": True, "model": settings.OLLAMA_MODEL, "sensor_columns": sensor_columns()}
+
+
+@app.get("/api/status")
+async def status():
+    return {
+        "db": database_status(),
+        "llm": await ollama_status(),
+        "rag": rag_status(),
+        "omniverse": {
+            "stream_url_configured": True,
+            "control_endpoint": settings.OMNIVERSE_CONTROL_ENDPOINT or None,
+            "control_queue": "control_commands",
+        },
+    }
 
 
 @app.get("/api/sensors/recent", response_model=SensorResponse)
@@ -49,19 +65,33 @@ async def ai_propose():
 
 
 @app.post("/api/ai/decision")
-def ai_decision(payload: ActionDecision):
+async def ai_decision(payload: ActionDecision):
     append_action_log(payload.proposal.model_dump(), payload.decision)
     if payload.decision == "decline":
         return {"status": "declined", "message": "Proposal logged but no control action was applied."}
 
-    # Important integration point:
-    # Replace this stub with your Omniverse/Kit bridge, WebSocket, MQTT, or DB command table.
-    # The frontend receives the action and can also call your Omniverse controller separately.
-    control_payload = ControlPayload(actions=payload.proposal.actions)
+    control_payload = ControlPayload(actions=payload.proposal.actions).model_dump()
+    command_id = append_control_command(control_payload)
+    bridge_result = None
+
+    if settings.OMNIVERSE_CONTROL_ENDPOINT:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                res = await client.post(settings.OMNIVERSE_CONTROL_ENDPOINT, json=control_payload)
+                res.raise_for_status()
+                try:
+                    bridge_result = res.json()
+                except Exception:
+                    bridge_result = {"text": res.text}
+        except Exception as exc:
+            bridge_result = {"error": str(exc)}
+
     return {
         "status": "confirmed",
-        "message": "Proposal confirmed. Send this payload to Omniverse controller.",
-        "control_payload": control_payload.model_dump(),
+        "message": "Proposal confirmed and queued for Omniverse control.",
+        "command_id": command_id,
+        "control_payload": control_payload,
+        "bridge_result": bridge_result,
     }
 
 

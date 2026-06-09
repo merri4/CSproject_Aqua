@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from .config import settings
+from .rag_adapter import local_rag_context
 from .schemas import ActionProposal
 
 
@@ -46,7 +47,7 @@ Include: current state, likely cause, risk, recommended action, expected feedbac
 
 async def rag_context(query: str) -> str:
     if not settings.RAG_ENDPOINT:
-        return ""
+        return await local_rag_context(query)
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             res = await client.post(settings.RAG_ENDPOINT, json={"query": query})
@@ -59,7 +60,26 @@ async def rag_context(query: str) -> str:
             except Exception:
                 return res.text
     except Exception as exc:
-        return f"[RAG unavailable: {exc}]"
+        return f"[RAG unavailable: {exc}]\n{await local_rag_context(query)}"
+
+
+async def ollama_status() -> dict[str, Any]:
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            res = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
+            res.raise_for_status()
+            payload = res.json()
+        models = [item.get("name") for item in payload.get("models", []) if isinstance(item, dict)]
+        return {
+            "ok": True,
+            "base_url": settings.OLLAMA_BASE_URL,
+            "model": settings.OLLAMA_MODEL,
+            "embed_model": settings.OLLAMA_EMBED_MODEL,
+            "models": models,
+            "model_available": settings.OLLAMA_MODEL in models or f"{settings.OLLAMA_MODEL}:latest" in models,
+        }
+    except Exception as exc:
+        return {"ok": False, "base_url": settings.OLLAMA_BASE_URL, "model": settings.OLLAMA_MODEL, "error": str(exc)}
 
 
 async def ollama_chat(messages: list[dict[str, str]], temperature: float = 0.2) -> str:
