@@ -82,9 +82,26 @@ def build_vector_database():
 
     print(f"모든 문서가 요약되어 '{DB_DIR}'에 영구 저장되었습니다.")
 
+    documents = [
+        "실내 순환여과식 양식(RAS)에서 암모니아(NH3) 수치가 0.05 mg/L 이상으로 상승하면 사료 투여량을 즉시 50% 감축하거나 중단해야 한다.",
+        "용존산소(DO) 수치가 6.0 mg/L 이하로 떨어지면 연어의 호흡 부전이 발생하므로 비상 액체 산소 주입 밸브를 열고 순환 펌프 속도를 올려야 한다.",
+        "질산염(NO3-) 수치가 50 mg/L을 초과하여 누적되면 대량 폐사 위험이 있으므로 즉시 10% 내외의 스마트 자동 환수(물 교환) 시스템을 가동한다.",
+        "pH 수치가 7.8 이상으로 높아지면 암모니아의 독성이 급격히 강해지므로 pH 조절제를 투입하여 수질을 6.8 ~ 7.2 사이로 유지해야 한다.",
+        "바이오필터(여과조) 효율 저하로 암모니아가 질산염으로 분해되지 않을 때는 환수율을 20% 상향하고 아질산염 수치를 함께 점검해야 한다.",
+    ]
+
+    for i, doc in enumerate(documents):
+        # Ollama를 통해 텍스트를 벡터(숫자 배열)로 변환
+        response = ollama.embeddings(model=EMBED_MODEL, prompt=doc)
+        embedding = response["embedding"]
+
+        # Chroma DB에 저장
+        collection.add(
+            ids=[f"doc_{i}"], embeddings=[embedding], documents=[doc]
+        )
+    print("DB 구축 완료!")
 
 if __name__ == "__main__":
-    # 실행하기 전에 manuals 폴더를 만들고 PDF를 넣어주세요.
     if not os.path.exists(PDF_DIR):
         os.makedirs(PDF_DIR)
         print(f"{PDF_DIR} 폴더를 생성했습니다. 여기에 PDF를 넣어주세요.")

@@ -1,6 +1,8 @@
 /lstm
 /output
 /transformer
+/venv
+/salmon_twin_dashboard/frontend/node_modules
 /rag/llm
 /rag/llm-py312
 /rag/manuals
