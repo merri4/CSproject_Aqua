@@ -1,3 +1,8 @@
 /lstm
 /output
 /transformer
+/rag/llm
+/rag/llm-py312
+/rag/manuals
+/rag/pandasai.log
+/rag/sensor_history.csv
